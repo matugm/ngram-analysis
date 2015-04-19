@@ -1,14 +1,14 @@
 require 'restclient'
-require 'nokogiri'
 
 require_relative 'ngrams'
 
-LOG_DIR  = 'irc_logs'
-
 class LogParser
-  def initialize(date)
+  LOG_DIR  = 'irc_logs'
+
+  def initialize(date, channel = "ruby")
     @date = date
-    @log_name = "#{LOG_DIR}/irc-log-#{@date}.txt"
+    @channel  = channel
+    @log_name = "#{LOG_DIR}/#{@channel}/irc-log-#{@date}.txt"
   end
 
   def download_page(url)
@@ -24,15 +24,10 @@ class LogParser
     File.readlines(@log_name).join
   end
 
-  def find_messages(page)
-    nodes = Nokogiri::HTML.parse(page)
-    nodes.css('.log-messages .talk').text
-  end
-
   def get_messages
-    page = download_page("http://irclog.whitequark.org/ruby/#{@date}")
+    page = download_page("http://irclog.whitequark.org/#{@channel}/#{@date}.txt")
     save_page(page)
-    find_messages(page)
+    page
   end
 end
 
@@ -40,16 +35,18 @@ def filter_non_words(ngrams)
   ngrams.reject { |w1, w2| w1 !~ /^\w+/ || w2 !~ /^\w+/ }
 end
 
+CHAT_MESSAGE   = /(\d+-\d+-\d+) (\d+:\d+) (<\w+>) ([\w ]+)/
+STATUS_MESSAGE = /(\d+-\d+-\d+) (\d+:\d+) ([\w ]+)/
+
 def get_bigrams_for_date(date)
   irc = LogParser.new(date)
-  msg = irc.get_messages
+  msg = irc.get_messages.split("\n").select { |m| m.match(CHAT_MESSAGE) }.join
 
   ngrams  = Ngram.new(msg).ngrams(3)
   ngrams  = filter_non_words(ngrams)
   bigrams = ngrams.map{ |n| n.join(' ') }
 
-  histo = bigrams.each_with_object(Hash.new(0)) { |word, obj| obj[word.downcase] += 1 }
-  Hash[histo]
+  bigrams.each_with_object(Hash.new(0)) { |word, obj| obj[word.downcase] += 1 }
 end
 
 MIN_REPETITIONS = 20
@@ -65,4 +62,3 @@ if __FILE__ == $PROGRAM_NAME
   total = total.sort_by { |k, v| -v }.reject { |k, v| v < MIN_REPETITIONS }
   total.each { |k, v| puts "#{v} => #{k}" }
 end
-
