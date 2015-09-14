@@ -38,7 +38,7 @@ end
 CHAT_MESSAGE   = /(\d+-\d+-\d+) (\d+:\d+) (<\w+>) ([\w ]+)/
 STATUS_MESSAGE = /(\d+-\d+-\d+) (\d+:\d+) ([\w ]+)/
 
-def get_bigrams_for_date(date)
+def get_trigrams_for_date(date)
   irc = LogParser.new(date)
   msg = irc.get_messages.split("\n").select { |m| m.match(CHAT_MESSAGE) }.join
 
@@ -56,7 +56,7 @@ if __FILE__ == $PROGRAM_NAME
 
   (1..15).each do |n|
     zero_padded = '%02d' % [n]
-    total.merge!(get_bigrams_for_date "2015-04-#{zero_padded}") { |k, old, new| old + new }
+    total.merge!(get_trigrams_for_date "2015-04-#{zero_padded}") { |k, old, new| old + new }
   end
 
   total = total.sort_by { |k, v| -v }.reject { |k, v| v < MIN_REPETITIONS }
